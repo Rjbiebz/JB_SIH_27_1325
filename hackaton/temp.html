@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <style> 
+       body {background:url(https://www.bing.com/images/search?view=detailV2&ccid=j%2bVFN6SL&id=F2C4777C06D5F6ED4CEE04B27C676847635CF3A1&thid=OIP.j-VFN6SLCZx1nBggVcE9ZgHaEK&mediaurl=https%3a%2f%2fi.pinimg.com%2foriginals%2f68%2fa7%2ff3%2f68a7f34090bd445a1c07ad0ad8081bd6.jpg&exph=675&expw=1200&q=background+images+for+medical+website&simid=608039306648492845&FORM=IRPRST&ck=7B08532CB67EB5ADD7613ECE8225E49C&selectedIndex=34&ajaxhist=0&ajaxserp=0);background-size:100% 100%;}
+  </style>
+  <meta charset="utf-8">
+  <title>Tele Kiosk</title>
+  <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+<script defer src="https://pyscript.net/latest/pyscript.js"></script>
+ <meta charset="utf-8">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles.css">
+
+  <nav class="navbar navbar-expand-lg bg-body-tertiary rounded" aria-label="navbar example">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsExample11" aria-controls="navbarsExample11" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse d-lg-flex" id="navbarsExample11">
+        <i class="fa-solid fa-heart-circle-plus fa-beat fa-xl"></i>
+        <a class="navbar-brand col-lg-3 me-0" href="#">Tele-KIOSK</a>
+        <ul class="navbar-nav col-lg-9 justify-content-lg-end">
+          <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="#">HOME</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">LINK</a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">SETTINGS</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="#">Profile</a></li>
+              <li><a class="dropdown-item" href="#">About</a></li>
+              <li><a class="dropdown-item" href="#">Logout</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <body>
+  <py-script>
+  from datetime import datetime
+import speech_recognition as sr
+import pyttsx3
+import webbrowser
+import wikipedia
+import wolframalpha
+
+import openai
+
+# Load credentials
+import os
+# Google TTS
+import pygame
+import time
+
+# Mute ALSA errors...
+from ctypes import *
+from contextlib import contextmanager
+
+ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
+
+def py_error_handler(filename, line, function, err, fmt):
+    pass
+
+c_error_handler = ERROR_HANDLER_FUNC(py_error_handler)
+
+@contextmanager
+def noalsaerr():
+    try: 
+        asound = cdll.LoadLibrary('libasound.so')
+        asound.snd_lib_error_set_handler(c_error_handler)
+        yield
+        asound.snd_lib_error_set_handler(None)
+    except:
+        yield
+        print('')
+
+### PARAMETERS ###
+activationWords = ['computer', 'calcutron', 'shodan', 'showdown']
+tts_type = 'local' # google or local
+
+# Local speech engine initialisation
+engine = pyttsx3.init()
+voices = engine.getProperty('voices')
+engine.setProperty('voice', voices[0].id) # 0 = male, 1 = female
+
+# Google TTS client
+def google_text_to_wav(voice_name: str, text: str):
+    language_code = "-".join(voice_name.split("-")[:2])
+
+    # Set the text input to be synthesized
+    text_input = tts.SynthesisInput(text=text)
+
+    # Build the voice request, select the language code ("en-US") and the voice name
+    voice_params = tts.VoiceSelectionParams(
+        language_code=language_code, name=voice_name
+    )
+
+    # Select the type of audio file you want returned
+    audio_config = tts.AudioConfig(audio_encoding=tts.AudioEncoding.LINEAR16)
+
+    client = tts.TextToSpeechClient()
+    response = client.synthesize_speech(
+        input=text_input, voice=voice_params, audio_config=audio_config
+    )
+
+    return response.audio_content
+
+# Configure browser
+# Set the path
+firefox_path = r"usr/bin/firefox"
+# Register the browser
+webbrowser.register('firefox', None, 
+                    webbrowser.BackgroundBrowser(firefox_path))
+
+# Wolfram Alpha client
+appId = '5R49J7-J888YX9J2V'
+wolframClient = wolframalpha.Client(appId)
+
+def speak(text, rate = 120):
+    time.sleep(0.3)
+    try:     
+        if tts_type == 'local':
+            engine.setProperty('rate', rate) 
+            engine.say(text, 'txt')
+            engine.runAndWait()
+        if tts_type == 'google':
+            speech = google_text_to_wav('en-US-News-K', text)
+            pygame.mixer.init(frequency=12000, buffer = 512)
+            speech_sound = pygame.mixer.Sound(speech)
+            speech_length = int(math.ceil(pygame.mixer.Sound.get_length(speech_sound)))
+            speech_sound.play()
+            time.sleep(speech_length)
+            pygame.mixer.quit()
+ 
+    ## The standard keyboard interrupt is Ctrl+C. This interrupts the Google speech synthesis.
+    except KeyboardInterrupt:
+        try:
+            if tts_type == 'google':
+                pygame.mixer.quit()
+        except:
+            pass
+        return
+
+
+def parseCommand():
+    with noalsaerr():
+        listener = sr.Recognizer()
+        print('Listening for a command')
+
+        with sr.Microphone() as source:
+            listener.pause_threshold = 2
+            input_speech = listener.listen(source)
+
+        try:
+            print('Recognizing speech...')
+            query = listener.recognize_google(input_speech, language='en_gb')
+            print(f'The input speech was: {query}')
+
+        except Exception as exception:
+            print('I did not quite catch that')
+            print(exception)
+
+            return 'None'
+
+        return query
+
+def search_wikipedia(keyword=''):
+    searchResults = wikipedia.search(keyword)
+    if not searchResults:
+        return 'No result received'
+    try: 
+        wikiPage = wikipedia.page(searchResults[0]) 
+    except wikipedia.DisambiguationError as error:
+        wikiPage = wikipedia.page(error.options[0])
+    print(wikiPage.title)
+    wikiSummary = str(wikiPage.summary)
+    return wikiSummary
+
+def listOrDict(var):
+    if isinstance(var, list):
+        return var[0]['plaintext']
+    else:
+        return var['plaintext']
+
+def search_wolframalpha(keyword=''):
+    response = wolframClient.query(keyword)
+  
+    # @success: Wolfram Alpha was able to resolve the query
+    # @numpods: Number of results returned
+    # pod: List of results. This can also contain subpods
+
+    # Query not resolved
+    if response['@success'] == 'false':
+        speak('I could not compute')
+    # Query resolved
+    else: 
+        result = ''
+        # Question
+        pod0 = response['pod'][0]
+        # May contain answer (Has highest confidence value) 
+        # if it's primary or has the title of result or definition, then it's the official result
+        pod1 = response['pod'][1]
+        if (('result') in pod1['@title'].lower()) or (pod1.get('@primary', 'false') == 'true') or ('definition' in pod1['@title'].lower()):
+            # Get the result
+            result = listOrDict(pod1['subpod'])
+            # Remove bracketed section
+            return result.split('(')[0]
+        else:
+            # Get the interpretation from pod0
+            question = listOrDict(pod0['subpod'])
+            # Remove bracketed section
+            question = question.split('(')[0]
+            # Could search wiki instead here? 
+            return question
+
+def query_openai(prompt = ""):
+    openai.organization = os.environ['OPENAI_ORG']
+    openai.api_key = os.environ['OPENAI_API_KEY']
+
+    # Temperature is a measure of randonmess
+    # Max_tokens is the number of tokens to generate
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=prompt,
+        temperature=0.3,
+        max_tokens=80,
+
+    )
+
+    return response.choices[0].text
+
+# Main loop
+if __name__ == '__main__': 
+    speak('All systems nominal.', 120)
+
+    while True:
+        # Parse as a list
+        # query = 'computer say hello'.split()
+        query = parseCommand().lower().split()
+
+        if query[0] in activationWords and len(query) > 1:
+            query.pop(0)
+
+            # Set commands
+            if query[0] == 'say':
+                if 'hello' in query:
+                    speak('Greetings, all!')
+                else:
+                    query.pop(0) # Remove 'say'
+                    speech = ' '.join(query) 
+                    speak(speech)
+
+            # Query OpenAI
+            if query[0] == 'insight':
+                query.pop(0) # Remove 'insight'
+                query = ' '.join(query)
+                speech = query_openai(query)
+                speak("Ok")
+                speak(speech)
+
+            # Navigation
+            if query[0] == 'go' and query[1] == 'to':
+                speak('Opening... ')
+                # Assume the structure is activation word + go to, so let's remove the next two words
+                query = ' '.join(query[2:])
+                webbrowser.get('chrome').open_new(query)
+
+            # Wikipedia
+            if query[0] == 'wikipedia':
+                query = ' '.join(query[1:])
+                speak('Querying the universal databank')
+                time.sleep(2)
+                speak(search_wikipedia(query))
+
+            # Wolfram Alpha
+            if query[0] == 'compute' or query[0] == 'computer':
+                query = ' '.join(query[1:])
+                try:
+                    result = search_wolframalpha(query)
+                    speak(result)
+                except:
+                    speak('Unable to compute')
+
+            # Note taking
+            if query[0] == 'log':
+                speak('Ready to record your note')
+                newNote = parseCommand().lower()
+                now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+                with open('note_%s.txt' % now, 'w') as newFile:
+                    newFile.write(now)
+                    newFile.write(' ')
+                    newFile.write(newNote)
+                speak('Note written')
+
+            if query[0] == 'exit':
+                speak('Goodbye')
+                break
+              </py-script>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-4" ;>
+               
+                    <div id="lhs">
+                      <img id="profile-imgg" src="https://cdn.pixabay.com/photo/2020/07/01/12/58/icon-5359553_1280.png" 
+                      alt="Profile-pic" height="100px"  >
+                
+                    <div class="patient-name-id">
+                    
+                        <div class="patient-name">
+                            <h5>Ramu</h5>
+                        </div>
+                     
+                        <div class="patient-id">
+                            <h5>#1234</h5>
+                        </div>
+                    </div>
+                    <!-- Button to Log out-->
+                    <button class="btn btn-primary">Log Out</button>
+                </div>
+            </div>
+            <!--Div for all the content on right side i.e., the chat section-->
+            <div class="col-md-8">
+                <!-- Content for the right column -->
+                <script src="https://kit.fontawesome.com/e1208cb5c0.js" crossorigin="anonymous"></script>
+
+                <div class="right-col"><!--Outer container-->
+                    <div class="outer-container"><!--chat messages-->
+                                <!--Bot message div-->
+                                <div class="bot-msg">
+                                    <!--Pattern for displaying the bot message-->
+                                    <div class="bot-pattern">
+                                        <!--Bot icon inside a div-->
+                                        <div id="bot-icon"><i class="fa-solid fa-robot fa-lg"></i></div>
+                                        <!--Bot message in side a div-->
+                                        <div id="bot-msgg">
+                                            <p>Hello, I am your personal assistant. How can I help you?</p>    
+                                        </div>
+                                    </div>
+
+                                    
+                                <!--User message div-->
+                                <div class="user-msg">
+                                    <!-- Pattern of displaying user message -->
+                                    <div class="user-pattern">
+                                        <!--User Icon inside a div-->
+                                        <div id="user-icon"><i class="fa-solid fa-person fa-xl"></i></div>
+                                        <!--User message inside a div-->
+                                        <div id="user-msgg">
+                                            <p>I have a few symptoms I wanted to tell.</p>      </div>
+                                    </div>
+                                </div>
+                    </div>
+
+                    <div class="form-input">
+                        <form method="post" action="/">
+                            <!--WE need 1 row in which there is input field on left and small button to send on right-->
+                            <div class="row">
+                                <div class="col-lg-10">
+                                    <!--The input area for new message-->
+                                    <input type="text" name="text" class="form-control" id="inputText" aria-describedby="TextHelp">
+                                </div>
+                                <div class="col-lg-2">
+                                    <!--Submit button to forward the message-->
+                                    <button class="btn btn-success" type="submit" style="width: 100%;">Send</button>
+                                </div>
+                            </div>
+                            
+                        </form>  
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+
+</body>
+</html>
